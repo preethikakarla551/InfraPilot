@@ -1,0 +1,65 @@
+services:
+  api:
+    build: .
+    environment:
+      INFRAPILOT_DB: /data/infrapilot.db
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-infrapilot}
+      MYSQL_USER: ${MYSQL_USER:-infrauser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-this-local-demo-password}
+    volumes:
+      - app_data:/data
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 20s
+      timeout: 3s
+      retries: 3
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8090:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      api:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.4
+    profiles: ["database"]
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-infrapilot}
+      MYSQL_USER: ${MYSQL_USER:-infrauser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-this-local-demo-password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-this-root-demo-password}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus:v3.3.0
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    profiles: ["monitoring"]
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+
+volumes:
+  app_data:
+  mysql_data:

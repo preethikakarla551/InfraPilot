@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+data/
+*.db
+.terraform/
+terraform.tfstate*
+terraform.tfvars
+inventory.ini
+
+.venv-wsl/

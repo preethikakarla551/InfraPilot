@@ -1,0 +1,26 @@
+---
+- name: Read-only Linux infrastructure audit
+  hosts: linux_hosts
+  gather_facts: true
+  tasks:
+    - name: Report operating system
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+
+    - name: Read total memory from Linux
+      ansible.builtin.command: awk '/MemTotal/ {print $2 " kB"}' /proc/meminfo
+      register: total_memory
+      changed_when: false
+
+    - name: Show total memory
+      ansible.builtin.debug:
+        msg: "Total memory: {{ total_memory.stdout }}"
+
+    - name: Check root filesystem capacity
+      ansible.builtin.command: df -h /
+      register: root_disk
+      changed_when: false
+
+    - name: Show root filesystem
+      ansible.builtin.debug:
+        var: root_disk.stdout_lines
