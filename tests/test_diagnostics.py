@@ -27,6 +27,54 @@ def test_snapshot_round_trip(monkeypatch):
         db_path.unlink(missing_ok=True)
 
 
+def test_snapshot_round_trip_uses_mysql_when_configured(monkeypatch):
+    class FakeCursor:
+        lastrowid = 17
+
+        def __init__(self, connection):
+            self.connection = connection
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def execute(self, query, params=None):
+            self.connection.queries.append((query, params))
+
+        def fetchall(self):
+            return self.connection.rows
+
+    class FakeConnection:
+        def __init__(self):
+            self.queries = []
+            self.rows = []
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def cursor(self):
+            return FakeCursor(self)
+
+        def commit(self):
+            inserted = self.queries[-1][1]
+            self.rows = [{"id": 17, "created_at": inserted[0], "payload": {"status": "ok"}}]
+
+    fake_connection = FakeConnection()
+    monkeypatch.setenv("INFRAPILOT_STORAGE_BACKEND", "mysql")
+    monkeypatch.setattr(storage, "_mysql_connection", lambda: fake_connection)
+
+    saved = storage.save_snapshot({"status": "ok"})
+    recent = storage.recent_snapshots()
+
+    assert saved["id"] == 17
+    assert recent == [saved]
+
+
 def test_metrics_are_prometheus_text():
     assert "# TYPE infrapilot_cpu_percent gauge" in metrics()
 

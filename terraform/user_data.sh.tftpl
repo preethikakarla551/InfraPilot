@@ -1,0 +1,78 @@
+#!/bin/bash
+set -euo pipefail
+exec > >(tee -a /var/log/infrapilot-bootstrap.log | logger -t infrapilot-bootstrap -s 2>/dev/console) 2>&1
+
+dnf install -y docker jq awscli-2 curl
+systemctl enable --now docker
+mkdir -p /opt/infrapilot
+chmod 700 /opt/infrapilot
+
+aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${ecr_repository}
+aws secretsmanager get-secret-value \
+  --region ${region} \
+  --secret-id '${database_secret}' \
+  --query SecretString \
+  --output text > /root/infrapilot-db-secret.json
+chmod 600 /root/infrapilot-db-secret.json
+
+DB_USER=$(jq -r '.username' /root/infrapilot-db-secret.json)
+DB_PASSWORD=$(jq -r '.password' /root/infrapilot-db-secret.json)
+rm -f /root/infrapilot-db-secret.json
+
+docker network create infrapilot || true
+docker pull '${image_uri}'
+docker run -d \
+  --name infrapilot-api \
+  --restart unless-stopped \
+  --network infrapilot \
+  --publish 127.0.0.1:8000:8000 \
+  --volume infrapilot-data:/data \
+  --env INFRAPILOT_DB=/data/infrapilot.db \
+  --env INFRAPILOT_STORAGE_BACKEND=mysql \
+  --env MYSQL_HOST='${database_host}' \
+  --env MYSQL_PORT='${database_port}' \
+  --env MYSQL_DATABASE='${database_name}' \
+  --env MYSQL_USER="$DB_USER" \
+  --env MYSQL_PASSWORD="$DB_PASSWORD" \
+  '${image_uri}'
+unset DB_PASSWORD
+
+cat > /opt/infrapilot/default.conf <<'NGINX'
+server {
+    listen 80;
+    server_name _;
+
+    location = /health {
+        proxy_pass http://infrapilot-api:8000/health;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location / {
+        return 404;
+    }
+}
+NGINX
+
+docker run -d \
+  --name infrapilot-nginx \
+  --restart unless-stopped \
+  --network infrapilot \
+  --publish 80:80 \
+  --volume /opt/infrapilot/default.conf:/etc/nginx/conf.d/default.conf:ro \
+  nginx:1.27-alpine
+
+for attempt in $(seq 1 30); do
+  if curl --fail --silent http://127.0.0.1:8000/health >/dev/null \
+    && curl --fail --silent http://127.0.0.1:8000/database-check >/dev/null; then
+    curl --fail --silent http://127.0.0.1:8000/diagnostics >/dev/null
+    curl --fail --silent http://127.0.0.1:8000/history >/dev/null
+    echo "InfraPilot API and private database connectivity are healthy."
+    exit 0
+  fi
+  sleep 10
+done
+
+echo "InfraPilot bootstrap did not pass its health checks."
+docker ps -a
+exit 1

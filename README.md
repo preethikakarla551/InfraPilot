@@ -1,8 +1,8 @@
-# InfraPilot 2.0
+# InfraPilot
 
-InfraPilot is a learning project for infrastructure operations. It exposes a small FastAPI service that reports its own health and gathers safe, read-only host diagnostics. It stores diagnostic snapshots in SQLite. Docker Compose adds Nginx and MySQL; Kubernetes, Terraform, Ansible, monitoring, and CI files demonstrate deployment patterns and are described with their current validation status.
+InfraPilot is an infrastructure engineering project for diagnostics, deployment, and operations. It exposes a FastAPI service, stores diagnostic snapshots in SQLite, and checks MySQL connectivity. The local stack runs with Docker Compose and Nginx; Kubernetes, Prometheus/Grafana, Terraform, Ansible, tests, and GitHub Actions support the learning and deployment workflows. An AWS portfolio deployment is being prepared and is not live yet.
 
-> This is a local portfolio demo, not a production-ready or American Express system. Never put real credentials in this repository.
+> Current status: the local project is verified; the AWS deployment is not live yet. This is a portfolio project, not a production-ready or American Express system. Never put real credentials in this repository.
 
 ## What you will learn
 
@@ -11,27 +11,28 @@ InfraPilot is a learning project for infrastructure operations. It exposes a sma
 | FastAPI API | HTTP endpoints, validation, health checks | implemented |
 | Host diagnostics | CPU, memory, disk, uptime, DNS, TCP checks | implemented; host/container scope depends on where it runs |
 | SQLite history | Save snapshots without external services | implemented |
-| Automated tests | Exercise API behavior without Docker | included |
-| Docker and Nginx | Run the API behind a reverse proxy | configured |
-| MySQL | Optional service and connectivity example | configured; API history currently uses SQLite |
-| Kubernetes | Deployment, Service, ConfigMap, Secret template | starter manifests; not yet locally validated |
-| Terraform and Ansible | Infrastructure and host-audit examples | starter examples; not yet applied |
-| Prometheus/Grafana | Metrics collection and dashboard provisioning | optional starter configuration |
-| GitHub Actions | Run tests on pushes and pull requests | configured; not yet observed on GitHub |
+| Automated tests | Exercise API behavior without Docker | 5 tests passed before the new MySQL storage test; updated suite pending rerun |
+| Docker and Nginx | Run the API behind a reverse proxy | Compose stack started and health endpoint verified |
+| MySQL | Local connectivity and optional persistent history backend | MySQL 8.4.13 connectivity verified locally; MySQL history backend added, tests pending; AWS RDS not deployed |
+| Kubernetes | Deployment, Service, ConfigMap, Secret template | Docker Desktop cluster; two replicas rolled out and health endpoint verified |
+| Terraform | Provision AWS network and portfolio resources | Expanded configuration formatted and validated; no AWS resources created yet |
+| Ansible | Read-only Linux infrastructure audit | WSL audit passed with `changed=0` |
+| Prometheus/Grafana | Metrics collection and dashboard | Prometheus target UP; CPU, memory, and disk panels populated in Grafana |
+| GitHub Actions | Run tests on pushes and pull requests | Earlier commit passed; latest AWS changes have not yet been pushed or checked |
 
 ## Architecture
 
 ```text
 Browser / curl
       |
-    Nginx :8080 (Compose)
+    Nginx :8090 (Compose)
       |
  FastAPI :8000 ---- SQLite volume (diagnostic history)
       |
  /health, /metrics, /diagnostics, /network-check, /history
 
 Optional Compose services: MySQL, Prometheus, Grafana
-Optional local cluster: Kubernetes Deployment + Service
+Local cluster: Kubernetes Deployment + Service
 ```
 
 ## Start on Windows (PowerShell)
@@ -73,35 +74,34 @@ Copy `.env.example` to `.env` and replace the demo passwords before using MySQL.
 Copy-Item .env.example .env
 docker compose up --build -d
 docker compose ps
-Invoke-RestMethod http://127.0.0.1:8080/health
+Invoke-RestMethod http://127.0.0.1:8090/health
 docker compose logs api nginx
 docker compose down
 ```
 
 The API history remains in SQLite inside a named volume. MySQL is provided as an adjacent database service for connectivity practice; this version does not claim to persist its application history in MySQL.
 
-Start the optional MySQL container with `docker compose --profile database up --build -d`. Start Prometheus and Grafana with `docker compose --profile monitoring up --build -d`; visit `http://localhost:9090` and `http://localhost:3000` (Grafana's local demo defaults are admin/admin; change them before any shared use). Combine profiles with `docker compose --profile database --profile monitoring up --build -d`.
+Start the optional MySQL container with `docker compose --profile database up --build -d`. Start Prometheus and Grafana with `docker compose --profile monitoring up --build -d`; visit `http://localhost:9090` and `http://localhost:3001` (the host port for Grafana may differ if 3000 is busy; change the local demo password before shared use). Combine profiles with `docker compose --profile database --profile monitoring up --build -d`.
 
-## Kubernetes (Kind)
+## Kubernetes (Docker Desktop)
 
-Install Docker Desktop, `kind`, and `kubectl`. Build and load the image into a local Kind cluster:
+Start the Kubernetes cluster in Docker Desktop and make sure `kubectl` uses the `docker-desktop` context. Build the image and apply the manifests:
 
 ```powershell
-kind create cluster --name infra-pilot
 docker build -t infrapilot:local .
-kind load docker-image infrapilot:local --name infra-pilot
 kubectl apply -f k8s/
+kubectl -n infrapilot rollout status deployment/infrapilot
 kubectl -n infrapilot get pods,svc
-kubectl -n infrapilot port-forward service/infrapilot 8000:8000
+kubectl -n infrapilot port-forward service/infrapilot 8001:8000
 ```
 
-In another window call `http://127.0.0.1:8000/health`. The manifests use a demo secret value: replace it before any shared environment. Cleanup: `kind delete cluster --name infra-pilot`.
+In another window call `http://127.0.0.1:8001/health`. The manifests use a demo secret value: replace it before any shared environment. Stop the port forward with Ctrl+C and scale the Deployment to zero when you want to stop its pods.
 
 ## Infrastructure examples
 
-- `terraform/` contains a small AWS VPC example. Review and run `terraform fmt -check` and `terraform validate` only after installing Terraform and initializing the directory. `terraform plan` may need AWS credentials and can incur cost only if you apply it; do not apply without reviewing the plan.
-- `ansible/` contains a read-only Linux facts playbook. From a Linux host with Ansible and an SSH target configured, run `ansible-playbook -i inventory.ini audit.yml --check`. This is an example, not a verified run against a real server.
-- `monitoring/` contains Prometheus scrape configuration and a Grafana provisioning stub. Optional Compose profiles can run these tools locally.
+- `terraform/` contains the staged AWS portfolio deployment: VPC, public EC2 host, private RDS MySQL, ECR, Secrets Manager, and IAM/SSM access. The AWS deployment has not yet been applied. Follow [AWS deployment](docs/AWS_DEPLOYMENT.md); review each plan and destroy the stack after the demonstration.
+- `ansible/` contains a read-only Linux facts playbook. It was run successfully against Ubuntu in WSL (`changed=0`).
+- `monitoring/` contains Prometheus scrape configuration and Grafana provisioning. Prometheus showed the API target UP and the Grafana dashboard showed CPU, memory, and disk metrics locally.
 
 ## Learn the code in this order
 
@@ -114,8 +114,8 @@ In another window call `http://127.0.0.1:8000/health`. The manifests use a demo 
 7. `k8s/`: Kubernetes desired state, service discovery, and probes.
 8. `terraform/` and `ansible/`: infrastructure provisioning versus host configuration.
 
-See `docs/LEARNING_GUIDE.md` for a guided walkthrough and `docs/OPERATIONS.md` for troubleshooting and the application deadline plan.
+See `docs/LEARNING_GUIDE.md` for a guided walkthrough, `docs/OPERATIONS.md` for local troubleshooting, and `docs/AWS_DEPLOYMENT.md` for the staged cloud deployment.
 
 ## Honest portfolio description
 
-In this build environment, the five unit tests pass and Python syntax compilation passes. Live HTTP, Docker, Kind, AWS, Ansible and monitoring validation could not be completed here. After you personally run and verify the relevant steps, a truthful description could be: “Built InfraPilot, a FastAPI infrastructure diagnostics demo with read-only host and TCP/DNS checks, SQLite incident history, automated unit tests, Docker/Nginx deployment configuration, and starter Kubernetes/Terraform/Ansible examples.” Do not claim AWS deployment, production readiness, MySQL-backed app persistence, Kubernetes validation, or monitoring validation until personally completed and evidenced.
+Five unit tests passed in WSL before the MySQL storage backend was added. GitHub Actions passed on the first commit. Docker Compose and MySQL connectivity were verified, two Kubernetes replicas rolled out, Prometheus scraped the API, Grafana showed host metrics, Terraform validated, and the Ansible audit passed against WSL. The updated MySQL storage test and the new AWS configuration have not yet been run in GitHub Actions. The AWS stack has not been deployed. Local mode stores history in SQLite; AWS mode is configured to store history in RDS MySQL. Do not claim AWS deployment or production readiness until the resources are created and the live health and persistence paths are verified.

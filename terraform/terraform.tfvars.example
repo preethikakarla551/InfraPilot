@@ -1,0 +1,6 @@
+region          = "ap-south-1"
+app_instance_type = "t3.micro"
+db_instance_class = "db.t3.micro"
+db_username       = "infrauser"
+db_password       = "REPLACE_WITH_A_UNIQUE_PASSWORD_AT_LEAST_16_CHARACTERS"
+image_tag         = "v1"

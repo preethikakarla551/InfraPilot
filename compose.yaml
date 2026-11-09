@@ -3,6 +3,7 @@ services:
     build: .
     environment:
       INFRAPILOT_DB: /data/infrapilot.db
+      INFRAPILOT_STORAGE_BACKEND: ${INFRAPILOT_STORAGE_BACKEND:-sqlite}
       MYSQL_HOST: mysql
       MYSQL_PORT: "3306"
       MYSQL_DATABASE: ${MYSQL_DATABASE:-infrapilot}
