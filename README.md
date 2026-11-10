@@ -1,8 +1,8 @@
 # InfraPilot
 
-InfraPilot is an infrastructure engineering project for diagnostics, deployment, and operations. It exposes a FastAPI service, stores diagnostic snapshots in SQLite, and checks MySQL connectivity. The local stack runs with Docker Compose and Nginx; Kubernetes, Prometheus/Grafana, Terraform, Ansible, tests, and GitHub Actions support the learning and deployment workflows. An AWS portfolio deployment is being prepared and is not live yet.
+InfraPilot is an infrastructure engineering project for diagnostics, deployment, and operations. It exposes a FastAPI service, stores diagnostic snapshots in SQLite locally and in private RDS MySQL in AWS, and exposes health and host metrics. The local stack runs with Docker Compose and Nginx; the AWS portfolio deployment uses Terraform, EC2, ECR, RDS, Secrets Manager, IAM, and Systems Manager.
 
-> Current status: the local project is verified; the AWS deployment is not live yet. This is a portfolio project, not a production-ready or American Express system. Never put real credentials in this repository.
+> Current status: deployed and verified in AWS `ap-south-1` as a single-server portfolio environment. The public HTTP endpoint exposes only `/health`; administration uses Systems Manager. This is not production-ready or an American Express system. Never put real credentials in this repository.
 
 ## What you will learn
 
@@ -11,14 +11,14 @@ InfraPilot is an infrastructure engineering project for diagnostics, deployment,
 | FastAPI API | HTTP endpoints, validation, health checks | implemented |
 | Host diagnostics | CPU, memory, disk, uptime, DNS, TCP checks | implemented; host/container scope depends on where it runs |
 | SQLite history | Save snapshots without external services | implemented |
-| Automated tests | Exercise API behavior without Docker | 5 tests passed before the new MySQL storage test; updated suite pending rerun |
+| Automated tests | Exercise API behavior without Docker | 6 tests passed in WSL and GitHub Actions |
 | Docker and Nginx | Run the API behind a reverse proxy | Compose stack started and health endpoint verified |
-| MySQL | Local connectivity and optional persistent history backend | MySQL 8.4.13 connectivity verified locally; MySQL history backend added, tests pending; AWS RDS not deployed |
+| MySQL | Local connectivity and persistent AWS history | RDS MySQL 8.4.11 connectivity verified; diagnostics snapshot written and returned by history |
 | Kubernetes | Deployment, Service, ConfigMap, Secret template | Docker Desktop cluster; two replicas rolled out and health endpoint verified |
-| Terraform | Provision AWS network and portfolio resources | Expanded configuration formatted and validated; no AWS resources created yet |
+| Terraform | Provision AWS network and portfolio resources | Applied in `ap-south-1`; network, private RDS, ECR, IAM/SSM, and EC2 created |
 | Ansible | Read-only Linux infrastructure audit | WSL audit passed with `changed=0` |
 | Prometheus/Grafana | Metrics collection and dashboard | Prometheus target UP; CPU, memory, and disk panels populated in Grafana |
-| GitHub Actions | Run tests on pushes and pull requests | Earlier commit passed; latest AWS changes have not yet been pushed or checked |
+| GitHub Actions | Run tests on pushes and pull requests | Passed after AWS deployment and bootstrap fix commits |
 
 ## Architecture
 
@@ -27,12 +27,16 @@ Browser / curl
       |
     Nginx :8090 (Compose)
       |
- FastAPI :8000 ---- SQLite volume (diagnostic history)
+ FastAPI :8000 ---- SQLite volume (local history)
       |
  /health, /metrics, /diagnostics, /network-check, /history
 
 Optional Compose services: MySQL, Prometheus, Grafana
 Local cluster: Kubernetes Deployment + Service
+
+AWS (ap-south-1): Internet -> EC2 Nginx :80 (/health only) -> FastAPI
+                                             |
+                                             +-> private RDS MySQL (diagnostic history)
 ```
 
 ## Start on Windows (PowerShell)
@@ -99,7 +103,7 @@ In another window call `http://127.0.0.1:8001/health`. The manifests use a demo 
 
 ## Infrastructure examples
 
-- `terraform/` contains the staged AWS portfolio deployment: VPC, public EC2 host, private RDS MySQL, ECR, Secrets Manager, and IAM/SSM access. The AWS deployment has not yet been applied. Follow [AWS deployment](docs/AWS_DEPLOYMENT.md); review each plan and destroy the stack after the demonstration.
+- `terraform/` contains the AWS portfolio deployment: VPC, public EC2 host, private RDS MySQL, ECR, Secrets Manager, and IAM/SSM access. It is currently deployed in `ap-south-1`. Follow [AWS deployment](docs/AWS_DEPLOYMENT.md) to inspect, operate, and clean up the stack.
 - `ansible/` contains a read-only Linux facts playbook. It was run successfully against Ubuntu in WSL (`changed=0`).
 - `monitoring/` contains Prometheus scrape configuration and Grafana provisioning. Prometheus showed the API target UP and the Grafana dashboard showed CPU, memory, and disk metrics locally.
 
@@ -118,4 +122,4 @@ See `docs/LEARNING_GUIDE.md` for a guided walkthrough, `docs/OPERATIONS.md` for 
 
 ## Honest portfolio description
 
-Five unit tests passed in WSL before the MySQL storage backend was added. GitHub Actions passed on the first commit. Docker Compose and MySQL connectivity were verified, two Kubernetes replicas rolled out, Prometheus scraped the API, Grafana showed host metrics, Terraform validated, and the Ansible audit passed against WSL. The updated MySQL storage test and the new AWS configuration have not yet been run in GitHub Actions. The AWS stack has not been deployed. Local mode stores history in SQLite; AWS mode is configured to store history in RDS MySQL. Do not claim AWS deployment or production readiness until the resources are created and the live health and persistence paths are verified.
+Six tests passed in WSL and GitHub Actions. Docker Compose and local MySQL connectivity were verified; two Kubernetes replicas rolled out; Prometheus scraped the API and Grafana displayed host metrics; Terraform applied the AWS stack; and the read-only Ansible audit passed against WSL. In AWS, the EC2 public `/health` endpoint returned `status: ok`; an SSM session verified RDS MySQL 8.4.11 connectivity, wrote a diagnostic snapshot, and read it back from `/history`. The AWS deployment is a single EC2 host with HTTP only, no high availability, and no production security or disaster-recovery claim.
