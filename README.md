@@ -66,13 +66,11 @@ The live health endpoint returned `{"status":"ok","service":"infrapilot","versio
 
 ## Architecture
 
-![InfraPilot AWS architecture](docs/assets/InfraPilot-Architecture.svg)
+![InfraPilot AWS architecture screenshot](docs/assets/InfraPilot-Architecture-Screenshot.png)
 
-*Editable source: [open the architecture in diagrams.net](docs/InfraPilot-Architecture.drawio).*
+## Project data flow
 
-## Project flowchart
-
-![Simple top-to-bottom InfraPilot project flow](docs/assets/InfraPilot-Project-Flow-Simple.svg)
+![InfraPilot application data flow](docs/assets/InfraPilot-Data-Flow.svg)
 
 
 Local development adds Docker Compose services for MySQL, Prometheus, and Grafana. Kubernetes was deployed to Docker Desktop; it is not an AWS EKS cluster.
