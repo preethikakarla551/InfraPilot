@@ -1,95 +1,174 @@
+<div align="center">
+
 # InfraPilot
 
-InfraPilot is an infrastructure engineering project for diagnostics, deployment, and operations. It exposes a FastAPI service, stores diagnostic snapshots in SQLite locally and in private RDS MySQL in AWS, and exposes health and host metrics. The local stack runs with Docker Compose and Nginx; the AWS portfolio deployment uses Terraform, EC2, ECR, RDS, Secrets Manager, IAM, and Systems Manager.
+### Infrastructure Diagnostics, Monitoring & AWS Deployment
 
-> Current status: deployed and verified in AWS `ap-south-1` as a single-server portfolio environment. The public HTTP endpoint exposes only `/health`; administration uses Systems Manager. This is not production-ready or an American Express system. Never put real credentials in this repository.
+<p>
+  <img alt="Python 3.12" src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-API-009688?style=for-the-badge&logo=fastapi&logoColor=white">
+  <img alt="Pytest" src="https://img.shields.io/badge/Tests-Pytest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white">
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-Containers-2496ED?style=for-the-badge&logo=docker&logoColor=white">
+  <img alt="Docker Compose" src="https://img.shields.io/badge/Docker_Compose-Services-394D54?style=for-the-badge&logo=docker&logoColor=white">
+  <img alt="Nginx" src="https://img.shields.io/badge/Nginx-Reverse_Proxy-009639?style=for-the-badge&logo=nginx&logoColor=white">
+  <img alt="Kubernetes" src="https://img.shields.io/badge/Kubernetes-Local_Deployment-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white">
+  <img alt="MySQL" src="https://img.shields.io/badge/MySQL-8.4-4479A1?style=for-the-badge&logo=mysql&logoColor=white">
+  <img alt="AWS" src="https://img.shields.io/badge/AWS-EC2%20%7C%20RDS%20%7C%20ECR-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white">
+  <img alt="Terraform" src="https://img.shields.io/badge/Terraform-Infrastructure-7B42BC?style=for-the-badge&logo=terraform&logoColor=white">
+  <img alt="Ansible" src="https://img.shields.io/badge/Ansible-Linux_Audit-EE0000?style=for-the-badge&logo=ansible&logoColor=white">
+  <img alt="Prometheus" src="https://img.shields.io/badge/Prometheus-Metrics-E6522C?style=for-the-badge&logo=prometheus&logoColor=white">
+  <img alt="Grafana" src="https://img.shields.io/badge/Grafana-Dashboards-F46800?style=for-the-badge&logo=grafana&logoColor=white">
+  <img alt="GitHub Actions" src="https://img.shields.io/badge/GitHub_Actions-CI-2088FF?style=for-the-badge&logo=githubactions&logoColor=white">
+</p>
 
-## What you will learn
+**A hands-on infrastructure engineering project built, deployed, and verified locally and on AWS.**
 
-| Part | Purpose | Status |
+[Live health check](http://13.233.198.93/health) · [AWS deployment guide](docs/AWS_DEPLOYMENT.md) · [Learning guide](docs/LEARNING_GUIDE.md)
+
+</div>
+
+> **Deployment scope:** InfraPilot is a single-server portfolio deployment in AWS `ap-south-1`. The public endpoint uses HTTP and exposes only `/health`. It is not a production-ready service or an American Express system. The EC2 public IP can change after a stop/start.
+
+## Project overview
+
+InfraPilot is a FastAPI service for infrastructure health checks and host diagnostics. It collects CPU, memory, disk, and uptime signals; performs bounded TCP connectivity checks; exposes Prometheus metrics; and stores diagnostic snapshots. Local runs use SQLite. The AWS deployment uses private Amazon RDS for MySQL-backed diagnostic history.
+
+The project brings application development and infrastructure operations together: Python API design, container packaging, reverse proxying, database connectivity, local Kubernetes, monitoring, Linux auditing, Terraform provisioning, and CI.
+
+## What I built and verified
+
+| Area | Implementation | Verified result |
 |---|---|---|
-| FastAPI API | HTTP endpoints, validation, health checks | implemented |
-| Host diagnostics | CPU, memory, disk, uptime, DNS, TCP checks | implemented; host/container scope depends on where it runs |
-| SQLite history | Save snapshots without external services | implemented |
-| Automated tests | Exercise API behavior without Docker | 6 tests passed in WSL and GitHub Actions |
-| Docker and Nginx | Run the API behind a reverse proxy | Compose stack started and health endpoint verified |
-| MySQL | Local connectivity and persistent AWS history | RDS MySQL 8.4.11 connectivity verified; diagnostics snapshot written and returned by history |
-| Kubernetes | Deployment, Service, ConfigMap, Secret template | Docker Desktop cluster; two replicas rolled out and health endpoint verified |
-| Terraform | Provision AWS network and portfolio resources | Applied in `ap-south-1`; network, private RDS, ECR, IAM/SSM, and EC2 created |
-| Ansible | Read-only Linux infrastructure audit | WSL audit passed with `changed=0` |
-| Prometheus/Grafana | Metrics collection and dashboard | Prometheus target UP; CPU, memory, and disk panels populated in Grafana |
-| GitHub Actions | Run tests on pushes and pull requests | Passed after AWS deployment and bootstrap fix commits |
+| API | FastAPI health, diagnostics, history, database, network-check, and metrics routes | Health and diagnostics endpoints returned valid responses |
+| Diagnostics | Read-only CPU, memory, disk, uptime, DNS, and bounded TCP checks | `/diagnostics` returned host signals; TCP check reached `example.com:443` |
+| Persistence | SQLite locally; configurable MySQL backend for AWS | RDS MySQL 8.4.11 connection passed; a snapshot was written and returned by `/history` |
+| Containers | Non-root API image, Docker Compose, and Nginx reverse proxy | Compose services started; health endpoint passed through Nginx |
+| Kubernetes | Docker Desktop Deployment and Service | Two local API replicas rolled out and served `/health` |
+| Monitoring | Prometheus scrape configuration and Grafana dashboard | Prometheus target was UP; CPU, memory, and disk panels displayed data |
+| Infrastructure as code | Terraform for AWS VPC, subnets, security groups, EC2, RDS, ECR, IAM, and Secrets Manager | Terraform configuration validated and AWS resources applied |
+| Linux automation | Read-only Ansible audit running against Ubuntu in WSL | Audit passed with `changed=0`, `failed=0` |
+| Quality checks | Pytest and GitHub Actions | Six tests passed in WSL; GitHub Actions passed after the AWS bootstrap fix |
+
+## Live AWS deployment
+
+The current service is deployed in `ap-south-1` with:
+
+- **Amazon EC2:** one Amazon Linux host running the API and Nginx containers.
+- **Amazon ECR:** private container image repository; image tag `v1` was pushed successfully.
+- **Amazon RDS for MySQL:** private, single-AZ database, version 8.4.11.
+- **AWS Secrets Manager:** database credentials retrieved by the EC2 instance role.
+- **AWS Systems Manager Session Manager:** administrative access without an inbound SSH rule.
+- **Security boundary:** the public Nginx listener serves `/health`; a public request to `/diagnostics` returned `404`. Database and diagnostic checks were verified from an SSM session.
+
+The live health endpoint returned `{"status":"ok","service":"infrapilot","version":"2.0.0"}`. From the instance, `/database-check` returned MySQL 8.4.11, `/diagnostics` wrote a snapshot, and `/history` returned the saved snapshots.
+
+> The health link uses the current EC2 public IP. AWS may assign a different IP after the instance is stopped and started. Update the link from the current Terraform output or EC2 console if it changes.
 
 ## Architecture
 
-```text
-Browser / curl
-      |
-    Nginx :8090 (Compose)
-      |
- FastAPI :8000 ---- SQLite volume (local history)
-      |
- /health, /metrics, /diagnostics, /network-check, /history
+```mermaid
+flowchart TB
+    Browser["Browser or API client"]
+    Operator["Operator"]
 
-Optional Compose services: MySQL, Prometheus, Grafana
-Local cluster: Kubernetes Deployment + Service
+    subgraph AWS["AWS ap-south-1"]
+        subgraph Host["Single EC2 host · Docker"]
+            Nginx["Nginx · port 80\nPublic route: /health"]
+            API["FastAPI · port 8000"]
+            Nginx --> API
+        end
+        Database[("Private RDS MySQL 8.4.11")]
+        ECR["Private Amazon ECR"]
+        Secrets["AWS Secrets Manager"]
+        SSM["Systems Manager Session Manager"]
+    end
 
-AWS (ap-south-1): Internet -> EC2 Nginx :80 (/health only) -> FastAPI
-                                             |
-                                             +-> private RDS MySQL (diagnostic history)
+    Browser -->|"HTTP GET /health"| Nginx
+    API -->|"MySQL connection and snapshot history"| Database
+    Host -.->|"Pulls the container image"| ECR
+    Host -.->|"Reads database credentials"| Secrets
+    Operator -->|"Secure administrative session"| SSM
+    SSM -.-> Host
 ```
 
-## Start on Windows (PowerShell)
+Local development adds Docker Compose services for MySQL, Prometheus, and Grafana. Kubernetes was deployed to Docker Desktop; it is not an AWS EKS cluster.
 
-Install Python 3.12 and Git. In PowerShell, if Python is not installed, run `winget install --id Python.Python.3.12 -e` and then open a new PowerShell window. Docker Desktop is needed only for the container section. Open PowerShell in this folder.
+## API routes
+
+| Route | Purpose | Public AWS access |
+|---|---|---|
+| `GET /health` | Basic service health response | Yes |
+| `GET /diagnostics` | Collect and save a diagnostic snapshot | No; verified from SSM |
+| `GET /history` | Read recent snapshots | No; verified from SSM |
+| `GET /database-check` | Check MySQL connectivity and version | No; verified from SSM |
+| `GET /network-check?host=...&port=...` | Bounded TCP connectivity diagnostic | No |
+| `GET /metrics` | Prometheus-format host metrics | No |
+
+Interactive API documentation is available locally at `/docs` when running the application directly.
+
+## Technology and skills demonstrated
+
+<p>
+  <img alt="Python" src="https://img.shields.io/badge/Python-API_Development-3776AB?style=flat-square&logo=python&logoColor=white">
+  <img alt="REST APIs" src="https://img.shields.io/badge/REST_API-Health_%26_Diagnostics-009688?style=flat-square">
+  <img alt="Linux" src="https://img.shields.io/badge/Linux-WSL_%26_Amazon_Linux-FCC624?style=flat-square&logo=linux&logoColor=black">
+  <img alt="AWS networking" src="https://img.shields.io/badge/AWS-VPC_%26_Security_Groups-FF9900?style=flat-square&logo=amazonaws&logoColor=white">
+  <img alt="Infrastructure as Code" src="https://img.shields.io/badge/IaC-Terraform-7B42BC?style=flat-square&logo=terraform&logoColor=white">
+  <img alt="Configuration management" src="https://img.shields.io/badge/Automation-Ansible-EE0000?style=flat-square&logo=ansible&logoColor=white">
+  <img alt="Observability" src="https://img.shields.io/badge/Observability-Prometheus_%2B_Grafana-E6522C?style=flat-square&logo=prometheus&logoColor=white">
+  <img alt="CI" src="https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white">
+</p>
+
+- **Infrastructure engineering:** network segmentation, security groups, compute and database integration, infrastructure readiness, and operational validation.
+- **Containers and orchestration:** Docker image creation, Compose service networking, Nginx proxying, Kubernetes Deployments, Services, and probes.
+- **Cloud and automation:** Terraform plans and applies, IAM instance roles, ECR image publishing, Secrets Manager integration, SSM operations, and Ansible audits.
+- **Monitoring and reliability:** Prometheus metrics, Grafana dashboards, health checks, service validation, and diagnostic history.
+- **Software delivery:** API implementation, pytest, GitHub Actions CI, Git version control, and technical documentation.
+
+## Run locally on Windows
+
+Open PowerShell in the project folder. Python 3.12 and Git are required. Docker Desktop is needed for the container and Kubernetes sections.
 
 ```powershell
-py -3.12 -m venv .venv
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+python -m pytest -q
 python -m uvicorn app.main:app --reload
 ```
 
-In a second PowerShell window, try:
+In another PowerShell window, check the local API:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/health
 Invoke-RestMethod http://127.0.0.1:8000/diagnostics
-Invoke-RestMethod 'http://127.0.0.1:8000/network-check?host=example.com&port=443'
 Invoke-RestMethod http://127.0.0.1:8000/history
 ```
 
-Open `http://127.0.0.1:8000/docs` for the interactive API guide. Stop the server with Ctrl+C.
+Stop the development server with **Ctrl+C**.
 
-### Run the tests
+## Run the local container stack
 
-```powershell
-python -m pytest -q
-```
-
-Tests use a temporary SQLite file and do not require Docker, MySQL, or internet connectivity.
-
-## Run the container stack
-
-Copy `.env.example` to `.env` and replace the demo passwords before using MySQL. These values are for local learning only.
+Create a local environment file from the example, then start the base API and Nginx services:
 
 ```powershell
 Copy-Item .env.example .env
 docker compose up --build -d
 docker compose ps
 Invoke-RestMethod http://127.0.0.1:8090/health
-docker compose logs api nginx
-docker compose down
 ```
 
-The API history remains in SQLite inside a named volume. MySQL is provided as an adjacent database service for connectivity practice; this version does not claim to persist its application history in MySQL.
+Optional MySQL and monitoring profiles:
 
-Start the optional MySQL container with `docker compose --profile database up --build -d`. Start Prometheus and Grafana with `docker compose --profile monitoring up --build -d`; visit `http://localhost:9090` and `http://localhost:3001` (the host port for Grafana may differ if 3000 is busy; change the local demo password before shared use). Combine profiles with `docker compose --profile database --profile monitoring up --build -d`.
+```powershell
+docker compose --profile database --profile monitoring up --build -d
+```
 
-## Kubernetes (Docker Desktop)
+The local Nginx port is `8090`; Prometheus uses `9090`; Grafana uses `3001`. Ports can be changed in `compose.yaml` if another program already uses them. Local mode stores history in SQLite unless `INFRAPILOT_STORAGE_BACKEND=mysql` is selected.
 
-Start the Kubernetes cluster in Docker Desktop and make sure `kubectl` uses the `docker-desktop` context. Build the image and apply the manifests:
+## Kubernetes validation
+
+The manifests were applied to the Docker Desktop cluster. To repeat the local rollout:
 
 ```powershell
 docker build -t infrapilot:local .
@@ -99,27 +178,33 @@ kubectl -n infrapilot get pods,svc
 kubectl -n infrapilot port-forward service/infrapilot 8001:8000
 ```
 
-In another window call `http://127.0.0.1:8001/health`. The manifests use a demo secret value: replace it before any shared environment. Stop the port forward with Ctrl+C and scale the Deployment to zero when you want to stop its pods.
+In a second terminal, check `http://127.0.0.1:8001/health`. Stop port forwarding with **Ctrl+C**. These are local Kubernetes resources, not an AWS-managed cluster.
 
-## Infrastructure examples
+## Repository map
 
-- `terraform/` contains the AWS portfolio deployment: VPC, public EC2 host, private RDS MySQL, ECR, Secrets Manager, and IAM/SSM access. It is currently deployed in `ap-south-1`. Follow [AWS deployment](docs/AWS_DEPLOYMENT.md) to inspect, operate, and clean up the stack.
-- `ansible/` contains a read-only Linux facts playbook. It was run successfully against Ubuntu in WSL (`changed=0`).
-- `monitoring/` contains Prometheus scrape configuration and Grafana provisioning. Prometheus showed the API target UP and the Grafana dashboard showed CPU, memory, and disk metrics locally.
+```text
+app/                 FastAPI routes, diagnostics, and storage backends
+tests/               Pytest API and storage tests
+terraform/           AWS network, EC2, RDS, ECR, IAM, and secret resources
+ansible/             Read-only Linux infrastructure audit
+k8s/                 Local Kubernetes Deployment and Service manifests
+monitoring/           Prometheus scrape and Grafana datasource configuration
+nginx/                Local reverse-proxy configuration
+docs/                 Learning, operations, and AWS deployment guides
+.github/workflows/    GitHub Actions test workflow
+```
 
-## Learn the code in this order
+## Security and current limitations
 
-1. `app/main.py`: routes are the URLs clients call.
-2. `app/diagnostics.py`: read-only OS and network inspection.
-3. `app/storage.py`: SQLite schema and snapshot persistence.
-4. `tests/`: requests sent to the API and expected responses.
-5. `Dockerfile` and `compose.yaml`: how processes and services are packaged and connected.
-6. `nginx/default.conf`: how the proxy forwards HTTP requests.
-7. `k8s/`: Kubernetes desired state, service discovery, and probes.
-8. `terraform/` and `ansible/`: infrastructure provisioning versus host configuration.
+- The AWS endpoint is **HTTP only** and is not suitable for sensitive user traffic.
+- The AWS deployment has one EC2 host and a single-AZ RDS database; it has no high availability or disaster-recovery design.
+- Only `/health` is exposed publicly. Keep diagnostic routes private unless authentication, authorization, and destination restrictions are added.
+- AWS resources use credits and can incur ongoing costs. Check Billing, and stop or destroy resources when they are not needed. Review [AWS deployment and cleanup](docs/AWS_DEPLOYMENT.md).
+- Terraform state and `terraform.tfvars` can contain sensitive information. Keep them private and out of Git.
+- This project demonstrates infrastructure engineering practices; it is not an AmEx system and does not claim production readiness or compliance certification.
 
-See `docs/LEARNING_GUIDE.md` for a guided walkthrough, `docs/OPERATIONS.md` for local troubleshooting, and `docs/AWS_DEPLOYMENT.md` for the staged cloud deployment.
+## Resume-ready project summary
 
-## Honest portfolio description
+> Built InfraPilot, a FastAPI infrastructure diagnostics service and deployed it to AWS using Terraform, Docker, EC2, ECR, and private RDS for MySQL-backed snapshot history. Added Nginx access controls, Systems Manager administration, Prometheus/Grafana monitoring, local Kubernetes manifests, a read-only Ansible audit, six automated tests, and GitHub Actions CI. Verified the public health endpoint and an end-to-end database snapshot write/read flow.
 
-Six tests passed in WSL and GitHub Actions. Docker Compose and local MySQL connectivity were verified; two Kubernetes replicas rolled out; Prometheus scraped the API and Grafana displayed host metrics; Terraform applied the AWS stack; and the read-only Ansible audit passed against WSL. In AWS, the EC2 public `/health` endpoint returned `status: ok`; an SSM session verified RDS MySQL 8.4.11 connectivity, wrote a diagnostic snapshot, and read it back from `/history`. The AWS deployment is a single EC2 host with HTTP only, no high availability, and no production security or disaster-recovery claim.
+The AWS deployment is a single-server portfolio environment. Do not describe it as highly available or production-ready.
