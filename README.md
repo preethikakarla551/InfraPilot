@@ -72,9 +72,7 @@ The live health endpoint returned `{"status":"ok","service":"infrapilot","versio
 
 ## Project flowchart
 
-The flowchart shows the delivery and validation steps, the public health-check route, and the private operations path used for diagnostic snapshots and history.
-
-![InfraPilot top-to-bottom project flowchart](docs/assets/InfraPilot-Project-Flow-Plain.svg)
+![Simple top-to-bottom InfraPilot project flow](docs/assets/InfraPilot-Project-Flow-Simple.svg)
 
 
 Local development adds Docker Compose services for MySQL, Prometheus, and Grafana. Kubernetes was deployed to Docker Desktop; it is not an AWS EKS cluster.
