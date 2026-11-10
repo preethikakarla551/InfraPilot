@@ -27,7 +27,7 @@
 
 </div>
 
-> **Deployment scope:** InfraPilot is a single-server portfolio deployment in AWS `ap-south-1`. The public endpoint uses HTTP and exposes only `/health`. It is not a production-ready service or an American Express system. The EC2 public IP can change after a stop/start.
+> **Deployment scope:** InfraPilot is a portfolio-scale deployment in AWS `ap-south-1` using one EC2 host and a private, single-AZ RDS MySQL instance. Nginx exposes only `GET /health` over HTTP; all other API routes are not publicly routed. Prometheus, Grafana, and Kubernetes are local validation tools, not part of the AWS deployment. The EC2 public IP may change after a stop/start. This is a learning and portfolio environment, not a production-ready service.
 
 ## Project overview
 
@@ -201,7 +201,7 @@ docs/                 Learning, operations, and AWS deployment guides
 - Only `/health` is exposed publicly. Keep diagnostic routes private unless authentication, authorization, and destination restrictions are added.
 - AWS resources use credits and can incur ongoing costs. Check Billing, and stop or destroy resources when they are not needed. Review [AWS deployment and cleanup](docs/AWS_DEPLOYMENT.md).
 - Terraform state and `terraform.tfvars` can contain sensitive information. Keep them private and out of Git.
-- This project demonstrates infrastructure engineering practices; it is not an AmEx system and does not claim production readiness or compliance certification.
+- This project demonstrates infrastructure engineering practices and does not claim production readiness or compliance certification.
 
 ## Resume-ready project summary
 

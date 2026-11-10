@@ -1,6 +1,6 @@
-# Operations and deadline checklist
+# Operations and validation checklist
 
-Target: submit the American Express application by **Monday, November 9, 2026, 10:00 PM India time (IST)**. Keep a protected final block for application submission; stop adding features well before then.
+Purpose: a reusable checklist for validating InfraPilot locally and in its AWS portfolio deployment. It covers project setup, endpoint checks, deployment, and documentation.
 
 ## Suggested sequence
 
