@@ -2,7 +2,9 @@
 set -euo pipefail
 exec > >(tee -a /var/log/infrapilot-bootstrap.log | logger -t infrapilot-bootstrap -s 2>/dev/console) 2>&1
 
-dnf install -y docker jq awscli-2 curl
+# Amazon Linux 2023 includes curl-minimal (which provides `curl`) and AWS CLI v2.
+# Installing the full `curl` package conflicts with curl-minimal.
+dnf install -y docker jq
 systemctl enable --now docker
 mkdir -p /opt/infrapilot
 chmod 700 /opt/infrapilot
