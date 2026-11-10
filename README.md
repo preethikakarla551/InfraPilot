@@ -74,6 +74,11 @@ The live health endpoint returned `{"status":"ok","service":"infrapilot","versio
 
 ## Verification evidence
 
+<details>
+<summary>Automated tests: 6 passed</summary>
+<img src="docs/evidence/pytest-6-passed.png" alt="Terminal output showing six pytest tests passed" width="900">
+</details>
+
 The following screenshots were captured from the local Docker Compose monitoring stack. They show the `infrapilot` CPU, memory and disk metrics in Prometheus. The target was marked **UP**, with the last scrape 3.075 seconds before the target-status screenshot.
 
 <details>
