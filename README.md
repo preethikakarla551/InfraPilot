@@ -72,6 +72,30 @@ The live health endpoint returned `{"status":"ok","service":"infrapilot","versio
 
 ![InfraPilot application data flow](docs/assets/InfraPilot-Data-Flow.svg)
 
+## Verification evidence
+
+The following screenshots were captured from the local Docker Compose monitoring stack. They show the `infrapilot` CPU, memory and disk metrics in Prometheus. The target was marked **UP** in the target screenshot; its last scrape was about 6 minutes old at capture time.
+
+<details>
+<summary>CPU metric graph</summary>
+<img src="docs/evidence/prometheus-cpu.png" alt="Prometheus graph for infrapilot CPU usage" width="900">
+</details>
+
+<details>
+<summary>Memory metric graph</summary>
+<img src="docs/evidence/prometheus-memory.png" alt="Prometheus graph for infrapilot memory usage" width="900">
+</details>
+
+<details>
+<summary>Disk metric graph</summary>
+<img src="docs/evidence/prometheus-disk.png" alt="Prometheus graph for infrapilot disk usage" width="900">
+</details>
+
+<details>
+<summary>Prometheus target status</summary>
+<img src="docs/evidence/prometheus-target.png" alt="Prometheus target health showing the infrapilot target UP" width="900">
+</details>
+
 
 Local development adds Docker Compose services for MySQL, Prometheus, and Grafana. Kubernetes was deployed to Docker Desktop; it is not an AWS EKS cluster.
 
