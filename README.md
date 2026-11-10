@@ -66,30 +66,17 @@ The live health endpoint returned `{"status":"ok","service":"infrapilot","versio
 
 ## Architecture
 
-```mermaid
-flowchart TB
-    Browser["Browser or API client"]
-    Operator["Operator"]
+![InfraPilot AWS architecture](docs/assets/InfraPilot-Architecture.svg)
 
-    subgraph AWS["AWS ap-south-1"]
-        subgraph Host["Single EC2 host · Docker"]
-            Nginx["Nginx · port 80\nPublic route: /health"]
-            API["FastAPI · port 8000"]
-            Nginx --> API
-        end
-        Database[("Private RDS MySQL 8.4.11")]
-        ECR["Private Amazon ECR"]
-        Secrets["AWS Secrets Manager"]
-        SSM["Systems Manager Session Manager"]
-    end
+*Editable source: [open the architecture in diagrams.net](docs/InfraPilot-Architecture.drawio).*
 
-    Browser -->|"HTTP GET /health"| Nginx
-    API -->|"MySQL connection and snapshot history"| Database
-    Host -.->|"Pulls the container image"| ECR
-    Host -.->|"Reads database credentials"| Secrets
-    Operator -->|"Secure administrative session"| SSM
-    SSM -.-> Host
-```
+## Project flowchart
+
+The flowchart shows the delivery and validation steps, the public health-check route, and the private operations path used for diagnostic snapshots and history.
+
+![InfraPilot project flowchart](docs/assets/InfraPilot-Project-Flow.svg)
+
+*Editable source: [open the project flowchart in diagrams.net](docs/InfraPilot-Project-Flow.drawio).*
 
 Local development adds Docker Compose services for MySQL, Prometheus, and Grafana. Kubernetes was deployed to Docker Desktop; it is not an AWS EKS cluster.
 
